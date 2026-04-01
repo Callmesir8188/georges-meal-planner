@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-const SERVER = "https://vitejsvitemrefs34h-v1im--3001--4c73681d.local-credentialless.webcontainer.io";
+const SERVER = "https://georges-meal-planner-server.onrender.com";
 const DENVER_TAX = 0.0881;
 const DEFAULT_BUDGET = 150;
 const TAXABLE_CATEGORIES = ["beverages", "soda", "candy", "alcohol", "beer", "wine", "paper goods", "cleaning", "personal care"];
