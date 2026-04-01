@@ -205,49 +205,49 @@ Return ONLY this JSON (no markdown, no explanation):
       lsSet(KEYS.plan, JSON.stringify(planResult));
       setPendingIngredients(planResult.ingredients);
 
-      // Step 2: Generate detailed recipes for all 5 meals
-      setStatus("Step 2 of 2 — Generating detailed recipes...");
-      const cookedDays = ["monday", "tuesday", "wednesday", "thursday", "friday"];
-      const mealsForRecipes = cookedDays.map(day => ({
-        day,
-        meal: (planResult as any)[day] as Meal,
-        isQuick: day === "tuesday" || day === "thursday",
-      }));
+      // Step 2: Generate recipes in two batches
+setStatus("Step 2 of 2 — Generating detailed recipes...");
 
-      const recipesPrompt = `Generate detailed recipes for these 5 meals for a family of 5 people (2 adults, kids ages 12 & 6, 1 additional adult).
+const buildRecipePrompt = (meals: {day: string, meal: Meal, isQuick: boolean}[]) => `
+You are a recipe generator. Return ONLY a valid JSON array. No text before or after. No markdown. No comments. Just the JSON array starting with [ and ending with ].
 
-Meals:
-${mealsForRecipes.map(m => `- ${m.meal.name} (${m.day}${m.isQuick ? ", QUICK meal under 30 min" : ""}${m.meal.doubled ? ", make DOUBLE portions for leftovers" : ""})`).join("\n")}
+Generate detailed recipes for these meals for a family of 5 (2 adults, kids ages 12 & 6, 1 additional adult):
+${meals.map(m => `- ${m.meal.name} (${m.day}${m.isQuick ? ", QUICK under 30 min" : ""}${m.meal.doubled ? ", DOUBLE portions for leftovers" : ""})`).join("\n")}
 
-For each recipe provide detailed professional-quality instructions with tips and techniques. Include kid-friendly notes where helpful.
-
-Return ONLY this JSON array (no markdown):
+Return this exact JSON structure:
 [
   {
-    "mealName": "...",
+    "mealName": "exact meal name here",
     "day": "monday",
     "prepTime": "15 min",
     "cookTime": "30 min",
     "totalTime": "45 min",
-    "servings": "5 servings (or 10 if doubled)",
+    "servings": "5 servings",
     "isQuick": false,
-    "isDoubled": true,
+    "isDoubled": false,
     "ingredients": [
-      { "item": "chicken breast", "quantity": "3 lbs", "note": "boneless skinless, pounded to even thickness" }
+      { "item": "ingredient name", "quantity": "amount", "note": "prep note" }
     ],
     "steps": [
-      { "step": 1, "title": "Prep the chicken", "instruction": "Pat the chicken breasts dry with paper towels. This is crucial for getting a good sear...", "tip": "Room temperature meat cooks more evenly — take it out of the fridge 15 min before cooking" }
+      { "step": 1, "title": "Step title", "instruction": "Detailed instruction here.", "tip": "Optional tip here" }
     ],
-    "chefTips": [
-      "This dish reheats beautifully — store sauce separately for best results",
-      "Kids can help measure and mix the spices"
-    ]
+    "chefTips": ["tip 1", "tip 2"]
   }
 ]`;
 
-      const recipesResult: Recipe[] = await API.askClaude(recipesPrompt, claudeKey);
-      setRecipes(recipesResult);
-      lsSet(KEYS.recipes, JSON.stringify(recipesResult));
+const allDays = [
+  { day: "monday",    meal: (planResult as any)["monday"]    as Meal, isQuick: false },
+  { day: "tuesday",   meal: (planResult as any)["tuesday"]   as Meal, isQuick: true  },
+  { day: "wednesday", meal: (planResult as any)["wednesday"] as Meal, isQuick: false },
+  { day: "thursday",  meal: (planResult as any)["thursday"]  as Meal, isQuick: true  },
+  { day: "friday",    meal: (planResult as any)["friday"]    as Meal, isQuick: false },
+];
+
+const batch1: Recipe[] = await API.askClaude(buildRecipePrompt(allDays.slice(0, 3)), claudeKey);
+const batch2: Recipe[] = await API.askClaude(buildRecipePrompt(allDays.slice(3)), claudeKey);
+const recipesResult = [...batch1, ...batch2];
+setRecipes(recipesResult);
+lsSet(KEYS.recipes, JSON.stringify(recipesResult));
 
       setShowAddons(true);
       setCheckedAddons([]);
