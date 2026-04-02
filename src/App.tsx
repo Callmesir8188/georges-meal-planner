@@ -109,7 +109,27 @@ interface Recipe {
 }
 
 export default function App() {
-  useKeepAlive();
+useKeepAlive();
+
+useEffect(() => {
+  fetch(`${SERVER}/api/plan/load`)
+    .then(r => r.json())
+    .then(data => {
+      if (data.plan && !plan) {
+        setPlan(data.plan);
+        lsSet(KEYS.plan, JSON.stringify(data.plan));
+      }
+      if (data.recipes && recipes.length === 0) {
+        setRecipes(data.recipes);
+        lsSet(KEYS.recipes, JSON.stringify(data.recipes));
+      }
+      if (data.groceries && !groceries) {
+        setGroceries(data.groceries);
+        lsSet(KEYS.groceries, JSON.stringify(data.groceries));
+      }
+    })
+    .catch(err => console.log("Could not load shared plan:", err));
+}, []);
 
 useEffect(() => {
   const params = new URLSearchParams(window.location.search);
@@ -282,11 +302,12 @@ Return this exact JSON structure:
       setRecipes(recipesResult);
       lsSet(KEYS.recipes, JSON.stringify(recipesResult));
 
-      setShowAddons(true);
-      setCheckedAddons([]);
-      setCustomAddonList([]);
-      setCustomAddon("");
-      setStatus("");
+await saveSharedPlan(planResult, recipesResult, null);
+setShowAddons(true);
+setCheckedAddons([]);
+setCustomAddonList([]);
+setCustomAddon("");
+setStatus("");
     } catch (err: any) {
       setStatus(`Error: ${err.message}`);
     }
@@ -350,11 +371,23 @@ Return this exact JSON structure:
       setGroceries(g);
       lsSet(KEYS.groceries, JSON.stringify(g));
       setStatus(`All prices loaded from ${store.name}!`);
-      setTab("groceries");
+setTab("groceries");
+await saveSharedPlan(plan!, recipes, g);
     } catch (err: any) {
       setStatus(`Kroger error: ${err.message}`);
     }
   }
+  async function saveSharedPlan(planData: Plan, recipesData: Recipe[], groceriesData: Groceries | null) {
+  try {
+    await fetch(`${SERVER}/api/plan/save`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ plan: planData, recipes: recipesData, groceries: groceriesData }),
+    });
+  } catch (err) {
+    console.log("Could not save shared plan:", err);
+  }
+}
 async function handleAddToCart() {
   if (!userToken) {
     const authUrl = `https://api.kroger.com/v1/connect/oauth2/authorize?response_type=code&client_id=${clientId}&redirect_uri=https://georgesmealplanner.netlify.app/callback&scope=cart.basic:write profile.compact`;
