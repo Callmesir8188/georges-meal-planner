@@ -489,11 +489,11 @@ Return this exact JSON structure:
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4 }}>
                     {group.items.map(item => (
                       <label key={item} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 14, padding: "8px 4px", cursor: "pointer", color: "#333", minHeight: 44 }}>
-                        <span style={{
-  width: 22, height: 22, borderRadius: 6, border: checkedAddons.includes(item) ? "none" : "2px solid #ccc",
+                        <span onClick={() => toggleAddon(item)} style={{
+  width: 22, height: 22, borderRadius: 6, border: checkedAddons.includes(item) ? "2px solid #378ADD" : "2px solid #ccc",
   background: checkedAddons.includes(item) ? "#378ADD" : "#fff",
   display: "inline-flex", alignItems: "center", justifyContent: "center",
-  flexShrink: 0, transition: "all 0.15s"
+  flexShrink: 0, cursor: "pointer"
 }}>
   {checkedAddons.includes(item) && <span style={{ color: "#fff", fontSize: 14, fontWeight: 700 }}>✓</span>}
 </span>
