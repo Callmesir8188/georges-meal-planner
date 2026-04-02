@@ -111,6 +111,28 @@ interface Recipe {
 export default function App() {
   useKeepAlive();
 
+useEffect(() => {
+  const params = new URLSearchParams(window.location.search);
+  const code = params.get("code");
+  if (code && clientId && clientSecret) {
+    fetch(`${SERVER}/api/kroger/auth`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ code, clientId, clientSecret }),
+    })
+      .then(r => r.json())
+      .then(data => {
+        if (data.access_token) {
+          lsSet("gmp_user_token", data.access_token);
+          setUserToken(data.access_token);
+          window.history.replaceState({}, "", "/");
+          setTab("groceries");
+        }
+      })
+      .catch(err => console.log("OAuth error:", err));
+  }
+}, []);
+
   const [tab, setTab] = useState("plan");
   const [clientId, setClientId] = useState(ls(KEYS.clientId) || "");
   const [clientSecret, setClientSecret] = useState(ls(KEYS.clientSecret) || "");
@@ -138,6 +160,9 @@ export default function App() {
   const [cartStatus, setCartStatus] = useState("");
   const [expandedRecipe, setExpandedRecipe] = useState<string | null>(null);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [userToken, setUserToken] = useState(ls("gmp_user_token") || "");
+  const [cartAdding, setCartAdding] = useState(false);
+  const [cartSuccess, setCartSuccess] = useState(false);
 
   const DAYS = [
     { key: "monday", label: "Monday", type: "main" },
@@ -330,7 +355,46 @@ Return this exact JSON structure:
       setStatus(`Kroger error: ${err.message}`);
     }
   }
+async function handleAddToCart() {
+  if (!userToken) {
+    const authUrl = `https://api.kroger.com/v1/connect/oauth2/authorize?response_type=code&client_id=${clientId}&redirect_uri=https://georgesmealplanner.netlify.app/callback&scope=cart.basic:write profile.compact`;
+    window.location.href = authUrl;
+    return;
+  }
 
+  if (!groceries?.items) return;
+  setCartAdding(true);
+  setCartStatus("");
+
+  try {
+    const items = groceries.items
+      .filter(i => i.upc)
+      .map(i => ({ upc: i.upc!, quantity: 1, modality: "PICKUP" }));
+
+    const res = await fetch(`${SERVER}/api/kroger/cart`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userToken, items }),
+    });
+
+    if (!res.ok) {
+      const err = await res.json();
+      if (err.error?.includes("401") || res.status === 401) {
+        localStorage.removeItem("gmp_user_token");
+        setUserToken("");
+        setCartStatus("Session expired — please log in again.");
+      } else {
+        setCartStatus(`Cart error: ${err.error || res.status}`);
+      }
+    } else {
+      setCartSuccess(true);
+      setCartStatus("🎉 Items added to your King Soopers cart! Open the King Soopers app or website to review and checkout for pickup.");
+    }
+  } catch (err: any) {
+    setCartStatus(`Error: ${err.message}`);
+  }
+  setCartAdding(false);
+}
   function saveSettings() {
     const b = parseFloat(budgetInput) || DEFAULT_BUDGET;
     setBudget(b);
@@ -643,9 +707,9 @@ Return this exact JSON structure:
               )}
 
               <div style={{ display: "flex", gap: 10, marginTop: 12, flexWrap: "wrap" }}>
-                <button style={btnP} onClick={() => setCartStatus("Cart integration requires King Soopers account authorization (OAuth). Coming soon — your list is ready to reference while you shop!")}>
-                  Add all to King Soopers cart
-                </button>
+                <button style={btnP} onClick={handleAddToCart} disabled={cartAdding}>
+  {cartAdding ? "Adding to cart..." : userToken ? "Add all to King Soopers cart" : "Login to King Soopers & add to cart"}
+</button>
                 <button style={btnS} onClick={() => plan && buildGroceries(plan.ingredients)} disabled={loading}>Refresh prices</button>
               </div>
               {cartStatus && <div style={{ ...noticeStyle("green"), marginTop: 10 }}>{cartStatus}</div>}
