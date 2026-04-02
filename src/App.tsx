@@ -660,8 +660,22 @@ async function handleAddToCart() {
 
           <div style={{ display: "flex", gap: 10, marginTop: 12, flexWrap: "wrap" }}>
             <button style={btnP} onClick={generatePlan} disabled={loading || showAddons}>
-              {loading ? "Working..." : plan ? "Regenerate menu" : "Generate this week's menu"}
-            </button>
+  {loading ? "Working..." : plan ? "Regenerate menu" : "Generate this week's menu"}
+</button>
+<button style={btnS} onClick={() => {
+  fetch(`${SERVER}/api/plan/load`)
+    .then(r => r.json())
+    .then(data => {
+      if (data.plan) { setPlan(data.plan); lsSet(KEYS.plan, JSON.stringify(data.plan)); }
+      if (data.recipes) { setRecipes(data.recipes); lsSet(KEYS.recipes, JSON.stringify(data.recipes)); }
+      if (data.groceries) { setGroceries(data.groceries); lsSet(KEYS.groceries, JSON.stringify(data.groceries)); }
+      if (!data.plan) setStatus("No shared plan found — generate one first!");
+      else setStatus("Plan synced successfully!");
+    })
+    .catch(() => setStatus("Could not reach server — try again."));
+}} disabled={loading}>
+  Sync latest plan
+</button>
             {plan && !showAddons && (
               <button style={btnS} onClick={() => { setPlan(null); setGroceries(null); setRecipes([]); localStorage.removeItem(KEYS.plan); localStorage.removeItem(KEYS.groceries); localStorage.removeItem(KEYS.recipes); setStatus(""); }}>
                 Clear plan
